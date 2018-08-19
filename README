@@ -1,1 +1,6 @@
-Giant piece of shit. Wanted to make a faster lolcat, but found out during development that the bottleneck of the original lolcat isn't ruby, but how fast color changes are processed by bash/whatever. Code has like 1 comment, and most of lolcats functionality isnt implemented, but still uploading, just in case. (if you benchmark it it might appear slower that the ruby version, thats because it uses truecolor by default. if you compare it to lolcat -t it will be like 20-40% faster.)
+Giant piece of shit.
+Wanted to make a faster lolcat, but found out during development that the bottleneck of the original lolcat isn't ruby, but IO :/
+Code has like 1 comment, and most of lolcats functionality isnt implemented, but still uploading, just in case.
+
+Generally since i don't wanna update this every time i optimize something i'd say you should benchmark it yourself, but i can at least say
+that the speed heavily depends on the settings. It ranges from 2.5x slower than lolcat to 50x faster, depending on where you pipe to/from and stuff.
