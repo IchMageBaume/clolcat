@@ -22,6 +22,7 @@ int truecolor = 1;
 
 size_t posX = 0;
 size_t posY = 0;
+size_t pos_mod = 0;
 
 void write_rainbow();
 void fputs_rainbow();
@@ -75,6 +76,24 @@ int main(int argc, char** argv) {
 
 	if(!force && !isatty(1)) {
 		use_color = 0;
+	}
+
+	// we dont want the positions to get too high or double inaccuracy might kick in.
+	// the color repeats revery time freq * n equals 2 * pi,
+	// so we compute an integer that is close to i * freq == 2 * pi 
+	// (suffices -0.01 < (i * freq) % (2 * pi) < 0.01)
+	// and do posX % i and posY % i to keep them small. (tested with dmesg | clolcat,
+	//  looks much better now)
+	double two_pi = M_PI * 2;
+	for(int i = 1; ; i++) {
+		double d = fmod(freq * i + 0.01, two_pi);
+		if(d < 0.02) {
+			printf("%d * %.2f = %.8f, %.8f %% %.4f = %f\n",
+				i, freq, freq * i, freq * i, two_pi, d - 0.01);
+			
+			posY_mod = i;	
+			break;
+		}
 	}
 
 
@@ -142,18 +161,29 @@ void write_rainbow(int fd, char* data, size_t size) {
 			if(data[written] == '\n') {
 				posX = 0;
 				posY++;
+				posY %= pos_mod;
 			}
 
 			posX++;
+			posX %= pos_mod;
 	
 			uint32_t color = rainbow();
 			int esc_len;
-			sprintf(escape_str, "\033[38;2;%u;%u;%um%n",
-					(color & 0xff000000) >> 24,
-					(color & 0x00ff0000) >> 16,
-					(color & 0x0000ff00) >>  8,
-					&esc_len);
-			
+			if(!invert) {
+				sprintf(escape_str, "\033[38;2;%u;%u;%um%n",
+						(color & 0xff000000) >> 24,
+						(color & 0x00ff0000) >> 16,
+						(color & 0x0000ff00) >>  8,
+						&esc_len);
+			}
+			else {
+				sprintf(escape_str, "\033[48;2;%u;%u;%um%n",
+						(color & 0xff000000) >> 24,
+						(color & 0x00ff0000) >> 16,
+						(color & 0x0000ff00) >>  8,
+						&esc_len);
+			}
+
 			size_t esc_written = 0;
 			do {
 				ssize_t ret = write(fd, escape_str + esc_written,
