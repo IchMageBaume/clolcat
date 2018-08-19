@@ -85,6 +85,7 @@ int main(int argc, char** argv) {
 		max_width = termsz.ws_col;
 	}
 
+	// library functions like rand() might produce the same numbers on every run
 	if(seed == 0) {
 		int fd = open("/dev/urandom", O_RDONLY);
 		if(fd < 0) exit_ioerr();
@@ -187,7 +188,7 @@ int main(int argc, char** argv) {
 		} while(++optind < argc);
 	}
 
-	if(isatty(0)) system("stty sane");
+	if(isatty(1)) printf("\033[39m\033[49m");
 	free(input_buffer);
 	free(output_buffer);
 	return 0;
@@ -239,8 +240,6 @@ void write_rainbow(int fd, char* data, size_t size) {
 			}
 		} while(written < size);
 
-		printf("ill write: %ld\n", output_offs);
-
 		// reuse written for how much buffer written to fd
 		written = 0;
 		
@@ -278,6 +277,6 @@ void exit_ioerr() {
 		fprintf(stderr, "I/O error: %d\n", errno);
 	}
 	
-	if(isatty(0)) system("stty sane");
+	if(isatty(1)) printf("\033[39m\033[49m\n");
 	exit(1);
 }
