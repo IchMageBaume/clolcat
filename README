@@ -1,6 +1,10 @@
-Giant piece of shit.
-Wanted to make a faster lolcat, but found out during development that the bottleneck of the original lolcat isn't ruby, but IO :/
-Code has like 1 comment, and most of lolcats functionality isnt implemented, but still uploading, just in case.
+Faster lolcat, since written in c.
 
-Generally since i don't wanna update this every time i optimize something i'd say you should benchmark it yourself, but i can at least say
-that the speed heavily depends on the settings. It ranges from 2.5x slower than lolcat to 50x faster, depending on where you pipe to/from and stuff.
+Features:
+	-About 2-5 times faster
+	-Handles lines with length > terminal width better
+	-Always uses truecolor
+
+Some of the original lolcats features are missing, and depending on flags and 
+where your pipes go it might have not too much more performance
+due to I/O overhead (at least my terminal emulator is slow with colors).

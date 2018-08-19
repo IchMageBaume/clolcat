@@ -27,11 +27,13 @@ size_t posX = 0;
 size_t posY = 0;
 size_t pos_mod = 0;
 size_t max_width = 0;
-uint32_t* color_map = NULL;
+
+// to minimize processor usage we buffer color escape strings
+char** color_map = NULL;
+uint8_t* color_map_lens = NULL;
 
 // to minimize writing overhead we buffer output
 char* output_buffer = NULL;
-off_t output_offs = 0;
 
 void write_rainbow(int fd, char* data, size_t size);
 void fputs_rainbow(char* str, FILE* file);
@@ -96,30 +98,55 @@ int main(int argc, char** argv) {
 	if(!force && !isatty(1)) {
 		use_color = 0;
 	}
-
-	if(freq > 0.01) {
+	else if(!force && freq < 0.001) {
+		fputs("Because it is pretty useless and might consume a lot of"
+			"memory, without -f I'll refuse to use color frequencies less"
+			"than 0.001.\n", stderr);
+		use_color = 0;
+	}
+	else {
 		// we dont want the positions to get too high or
 		// double inaccuracy might kick in.
 		// the color repeats revery time freq * n equals 2 * pi,
 		// so we compute an integer that is close to i * freq == 2 * pi 
-		// (suffices -0.01 < (i * freq) % (2 * pi) < 0.01)
+		// (suffices -freq / 10 < (i * freq) % (2 * pi) < freq / 10)
 		// and do posX % i and posY % i to keep them small. 
 		// (tested with dmesg | clolcat, looks much better now)
 		double two_pi = M_PI * 2;
 		for(int i = 1; ; i++) {
-			double d = fmod(freq * i + 0.01, two_pi);
-			if(d < 0.02) {
+			double d = fmod(freq * i + freq / 10, two_pi);
+			if(d < freq / 5) {
 				pos_mod = i;	
 				break;
 			}
 		}
 	
 		// also, since the colors will be repeating every pos_mod characters,
-		// we can make a color map and avoid calculating 3
-		// sines for every byte from stdin
-		color_map = (uint32_t*)malloc(pos_mod * sizeof(uint32_t));
+		// we can make a color map (with the actual color escape strings)
+		// and avoid calculating 3 sines for every byte from stdin
+		color_map = (char**)malloc(pos_mod * sizeof(char*));
+		color_map_lens = (uint8_t*)malloc(pos_mod * sizeof(uint8_t));
 		for(size_t i = 0; i < pos_mod; i++) {
-			color_map[i] = rainbow(i);
+			color_map[i] = (char*)malloc(21);
+			uint32_t color = rainbow(i);
+			int esc_len;
+			if(!invert) {
+				sprintf(color_map[i],
+					 "\033[38;2;%u;%u;%um%n",
+					(color & 0xff000000) >> 24,
+					(color & 0x00ff0000) >> 16,
+					(color & 0x0000ff00) >>  8,
+					&esc_len);
+			}
+			else {
+				sprintf(color_map[i],
+					"\033[48;2;%u;%u;%um%n",
+					(color & 0xff000000) >> 24,
+					(color & 0x00ff0000) >> 16,
+					(color & 0x0000ff00) >>  8,
+					&esc_len);
+			}
+			color_map_lens[i] = esc_len;
 		}
 	}
 
@@ -161,13 +188,14 @@ int main(int argc, char** argv) {
 	}
 
 	if(isatty(0)) system("stty sane");
+	free(input_buffer);
+	free(output_buffer);
 	return 0;
 }
 
 void write_rainbow(int fd, char* data, size_t size) {
-	// ret will never be 0 or less, so do{...} while(written < size); is fine
-
 	if(!use_color) {
+		// just write buffer to fd
 		size_t written = 0;
 		do {
 			ssize_t ret = write(fd, data + written, size - written);
@@ -180,35 +208,23 @@ void write_rainbow(int fd, char* data, size_t size) {
 				
 		} while(written < size);
 	}
-	else if(truecolor) {
+	else {
 		size_t written = 0;
-		output_offs = 0;
+		off_t output_offs = 0;
 
 		do {
 			if(data[written] == '\n') {
 				posX = 0;
 				posY++;
 			}
-	
-			uint32_t color = color_map?
-				color_map[(posX + posY) % pos_mod] : 
-				rainbow((posX + posY) % pos_mod);
-			int esc_len;
-			if(!invert) {
-				sprintf(output_buffer + output_offs,
-						"\033[38;2;%u;%u;%um%n",
-						(color & 0xff000000) >> 24,
-						(color & 0x00ff0000) >> 16,
-						(color & 0x0000ff00) >>  8,
-						&esc_len);
-			}
-			else {
-				sprintf(output_buffer + output_offs, "\033[48;2;%u;%u;%um%n",
-						(color & 0xff000000) >> 24,
-						(color & 0x00ff0000) >> 16,
-						(color & 0x0000ff00) >>  8,
-						&esc_len);
-			}
+
+
+			size_t esc_len = color_map_lens[(posX + posY) % pos_mod];
+			memcpy(
+				output_buffer + output_offs,
+				color_map[(posX + posY) % pos_mod],
+				esc_len);
+			
 			output_buffer[output_offs + esc_len] = data[written];
 			
 			output_offs += esc_len + 1;
@@ -238,9 +254,6 @@ void write_rainbow(int fd, char* data, size_t size) {
 
 			written += ret;
 		} while(written < output_offs);
-	}
-	else {
-		// TODO
 	}
 }
 
