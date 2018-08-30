@@ -1,10 +1,24 @@
 Faster lolcat, since written in c.
 
 Features:
-	-About 2-5 times faster
+	-About a fucking LOT faster (more below)
 	-Handles lines with length > terminal width better
 	-Always uses truecolor
 
-Some of the original lolcats features are missing, and depending on flags and 
-where your pipes go it might have not too much more performance
-due to I/O overhead (at least my terminal emulator is slow with colors).
+On my system it gives the following speedup:
+
+$ time dmesg | lolcat -t
+... (some floating point errors visible)
+real 1.104s
+user 0.841s
+sys  0.276s
+
+$ time dmesg | clolcat
+... (no floating point errors visible)
+real 0.113s
+user 0.022s
+sys  0.012s
+
+When measuring performance keep in mind that on some systems 
+(espicially with nouveau instead of proprietary graphic drivers)
+the bottleneck might be overhead from outputting to a terminal.

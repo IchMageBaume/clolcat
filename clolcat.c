@@ -14,14 +14,10 @@
 #define BUFSZ 65536
 
 int use_color = 1;
-int spread = 30;
 double freq = 0.1;
 uint8_t seed = 0;
-int animate = 0;
-int duration = 12;
-int speed = 200;
 int invert = 0;
-int truecolor = 1;
+int ignore_file_errors = 0;
 
 size_t posX = 0;
 size_t posY = 0;
@@ -38,39 +34,36 @@ char* output_buffer = NULL;
 void write_rainbow(int fd, char* data, size_t size);
 void fputs_rainbow(char* str, FILE* file);
 uint32_t rainbow(size_t i);
-void exit_ioerr();
+
+// not used if file won't even open, just for other I/O errors
+void exit_ioerr(char* file);
 
 int main(int argc, char** argv) {
 	int force = 0;
+	int print_help = 0;
+	int exit_status = EXIT_SUCCESS;
 	
 	int c;
-	while((c = getopt(argc, argv, "p:F:S:ad:s:itfvh")) != -1) {
+	while((c = getopt(argc, argv, "F:S:iqfh")) != -1) {
 		switch(c) {
-		case 'p':
-			spread = atof(optarg) * 10; break;
 		case 'F':
 			freq = atof(optarg); break;
 		case 'S':
 			seed = atoi(optarg); break;
-		case 'a':
-			animate = 1; break;
-		case 'd':
-			duration = atoi(optarg); break;
-		case 's':
-			speed = atof(optarg); break;
 		case 'i':
 			invert = 1; break;
-		case 't':
-			truecolor = 1; break;
+		case 'q':
+			ignore_file_errors = 1; break;
 		case 'f':
 			force = 1; break;
-		case 'v':
-			fputs_rainbow("v1.0\n", stderr); system("stty sane"); return 0;
-		case 'h':
-			fputs_rainbow(help_str, stderr); system("stty sane"); return 0;
 		
+		// show help later, after stuff needed for rainbow output
+		// has been initialized
+		case 'h':
+			print_help = 1; break;
+
 		default:
-			fputs_rainbow(help_str, stderr); system("stty sane"); return 1;
+			print_help = 1; exit_status = EXIT_FAILURE; break;
 		}
 		
 	}
@@ -88,11 +81,16 @@ int main(int argc, char** argv) {
 	// library functions like rand() might produce the same numbers on every run
 	if(seed == 0) {
 		int fd = open("/dev/urandom", O_RDONLY);
-		if(fd < 0) exit_ioerr();
-		
-		read(fd, &seed, 1);
+		if(fd < 0) {
+			fputs("Error optaining seed from /dev/urandom, using 1 instead\n",
+				stderr);
+			seed = 1;
+		}
+		else {		
+			read(fd, &seed, 1);
 
-		close(fd);
+			close(fd);
+		}
 	}
 	posY = seed;
 
@@ -151,14 +149,22 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// BUFSZ is the maximum number of input bytes to process.
+	// 1 input byte generates less than 21 output bytes
+	// but Ill roll with this, just to be sure.
 	char* input_buffer = (char*)malloc(BUFSZ);
 	output_buffer = (char*)malloc(BUFSZ * 21);
+
+	if(print_help) {
+		fputs_rainbow(help_str, stderr);
+		goto epilog;
+	}
 
 	if(optind == argc) {
 		for(;;) {
 			ssize_t ret = read(0, input_buffer, BUFSZ);
 			if(ret < 0) {
-				exit_ioerr();
+				exit_ioerr("stdin");
 			}
 			if(ret == 0) {
 				break;
@@ -170,11 +176,26 @@ int main(int argc, char** argv) {
 	else {
 		do {
 			int fd = open(argv[optind], O_RDONLY);
+			if(fd < 0) {
+				if(!ignore_file_errors) {
+					fprintf(stderr, "Error: couldn't open %s\n", argv[optind]);
+					exit_status = EXIT_FAILURE;
+					goto epilog;
+				}
+				else {
+					goto next_file;
+				}
+			}
 			
 			for(;;) {
 				ssize_t ret = read(fd, input_buffer, BUFSZ);
 				if(ret < 0) {
-					exit_ioerr();
+					if(!ignore_file_errors) {
+						exit_ioerr(argv[optind]);
+					}
+					else {
+						goto next_file;
+					}
 				}
 				if(ret == 0) {
 					break;
@@ -184,14 +205,17 @@ int main(int argc, char** argv) {
 			}
 			
 			close(fd);
-
-		} while(++optind < argc);
+			
+			next_file:
+			optind++;
+		} while(optind < argc);
 	}
 
+	epilog:
 	if(isatty(1)) printf("\033[39m\033[49m");
 	free(input_buffer);
 	free(output_buffer);
-	return 0;
+	return exit_status;
 }
 
 void write_rainbow(int fd, char* data, size_t size) {
@@ -202,7 +226,7 @@ void write_rainbow(int fd, char* data, size_t size) {
 			ssize_t ret = write(fd, data + written, size - written);
 
 			if(ret < 0) {
-				exit_ioerr();
+				exit_ioerr(NULL);
 			}
 
 			written += ret;
@@ -248,7 +272,7 @@ void write_rainbow(int fd, char* data, size_t size) {
 				output_offs - written);
 
 			if(ret < 0) {
-				exit_ioerr();
+				exit_ioerr(NULL);
 			}
 
 			written += ret;
@@ -268,13 +292,15 @@ uint32_t rainbow(size_t i) {
 		((0x00)                                              <<  0);
 }
 
-void exit_ioerr() {
+void exit_ioerr(char* file) {
 	char* errstr = strerror(errno);
 	if(errstr) {
-		fprintf(stderr, "I/O error: %s\n", errstr);
+		fprintf(stderr, "I/O error%s%s: %s\n", file? " on file " : "", file,
+			errstr);
 	}
 	else {
-		fprintf(stderr, "I/O error: %d\n", errno);
+		fprintf(stderr, "I/O error%s%s: %d\n", file? " on file " : "", file,
+			errno);
 	}
 	
 	if(isatty(1)) printf("\033[39m\033[49m\n");
