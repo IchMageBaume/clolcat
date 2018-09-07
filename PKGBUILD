@@ -2,7 +2,7 @@ pkgname=clolcat
 pkgver=1
 pkgrel=1
 pkgdesc="Much faster lolcat"
-arch=('x86' 'x86_64')
+arch=('any')
 url="https://github.com/IchMageBaume/clolcat"
 license=('WTFPL')
 
