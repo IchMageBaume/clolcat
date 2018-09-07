@@ -1,8 +1,13 @@
-yeet:
-	gcc -Wall -Werror -lm clolcat.c -O3 -o clolcat
+CC ?= gcc
+CFLAGS ?= -Wall -Werror -lm -O3
+
+.PHONY: install clean
+
+lolcat:
+	$(CC) $(CFLAGS) clolcat.c -o clolcat
 
 install:
-	cp clolcat /bin/clolcat
+	install clolcat $(DESTDIR)/clolcat
 
 clean:
 	rm -f clolcat
