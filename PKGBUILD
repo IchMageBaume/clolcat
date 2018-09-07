@@ -1,13 +1,11 @@
 pkgname=clolcat
-pkgver=1
+pkgver=v1
 pkgrel=1
 pkgdesc="Much faster lolcat"
 arch=('x86' 'x86_64')
 url="https://github.com/IchMageBaume/clolcat"
 license=('WTFPL')
-
-# add conflicts
-
+conflicts=('python-lolcat' 'lolcat' 'c-lolcat')
 source=("$pkgname"::'git+https://github.com/IchMageBaume/clolcat.git')
 sha256sums=(SKIP)
 
@@ -18,6 +16,5 @@ build() {
 
 package() {
   cd "$srcdir/$pkgname"
-  mkdir -p "${pkgdir}/usr/bin"
-  make DESTDIR="$pkgdir/usr/bin" install
+  make DESTDIR="$pkgdir/" install
 }
