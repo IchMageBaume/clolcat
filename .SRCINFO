@@ -1,0 +1,12 @@
+pkgbase = clolcat
+	pkgdesc = Much faster lolcat
+	pkgver = 1
+	pkgrel = 1
+	url = https://github.com/IchMageBaume/clolcat
+	arch = any
+	license = WTFPL
+	source = clolcat::git+https://github.com/IchMageBaume/clolcat.git
+	sha256sums = SKIP
+
+pkgname = clolcat
+
