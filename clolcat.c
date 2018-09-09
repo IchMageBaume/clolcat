@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdint.h>
+#include <time.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
@@ -15,7 +16,7 @@
 
 int use_color = 1;
 double freq = 0.1;
-uint8_t seed = 0;
+uint16_t seed = 0;
 int invert = 0;
 int ignore_file_errors = 0;
 
@@ -78,21 +79,10 @@ int main(int argc, char** argv) {
 		max_width = termsz.ws_col;
 	}
 
-	// library functions like rand() might produce the same numbers on every run
-	if(seed == 0) {
-		int fd = open("/dev/urandom", O_RDONLY);
-		if(fd < 0) {
-			fputs("Error optaining seed from /dev/urandom, using 1 instead\n",
-				stderr);
-			seed = 1;
-		}
-		else {		
-			read(fd, &seed, 1);
-
-			close(fd);
-		}
-	}
-	posY = seed;
+	// add some offset to posY for random color start, either based on
+	// a random number or a pnrg number seeded by user-given seed
+	srand(seed == 0? time(0) : seed);
+	posY = rand() & 0xFFFF;
 
 	if(!force && !isatty(1)) {
 		use_color = 0;
