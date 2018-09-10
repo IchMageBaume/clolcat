@@ -32,9 +32,9 @@ uint8_t* color_map_lens = NULL;
 // to minimize writing overhead we buffer output
 char* output_buffer = NULL;
 
-void write_rainbow(int fd, char* data, size_t size);
-void fputs_rainbow(char* str, FILE* file);
-uint32_t rainbow(size_t i);
+void write_color_by_offset(int fd, char* data, size_t size);
+void fputs_color_by_offset(char* str, FILE* file);
+uint32_t color_by_offset(size_t i);
 
 // not used if file won't even open, just for other I/O errors
 void exit_ioerr(char* file);
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
 		case 'f':
 			force = 1; break;
 		
-		// show help later, after stuff needed for rainbow output
+		// show help later, after stuff needed for color_by_offset output
 		// has been initialized
 		case 'h':
 			print_help = 1; break;
@@ -94,8 +94,8 @@ int main(int argc, char** argv) {
 		use_color = 0;
 	}
 	else {
-		// we dont want the positions to get too high or
-		// double inaccuracy might kick in.
+		// we want the max amount of different colors so we can
+		// make a color table.
 		// the color repeats revery time freq * n equals 2 * pi,
 		// so we compute an integer that is close to i * freq == 2 * pi 
 		// (suffices -freq / 10 < (i * freq) % (2 * pi) < freq / 10)
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
 		color_map_lens = (uint8_t*)malloc(pos_mod * sizeof(uint8_t));
 		for(size_t i = 0; i < pos_mod; i++) {
 			color_map[i] = (char*)malloc(21);
-			uint32_t color = rainbow(i);
+			uint32_t color = color_by_offset(i);
 			int esc_len;
 			if(!invert) {
 				sprintf(color_map[i],
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
 	output_buffer = (char*)malloc(BUFSZ * 21);
 
 	if(print_help) {
-		fputs_rainbow(help_str, stderr);
+		fputs_color_by_offset(help_str, stderr);
 		goto epilog;
 	}
 
@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
 				break;
 			}
 			
-			write_rainbow(1, input_buffer, ret);
+			write_color_by_offset(1, input_buffer, ret);
 		}
 	}
 	else {
@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
 					break;
 				}
 
-				write_rainbow(1, input_buffer, ret);
+				write_color_by_offset(1, input_buffer, ret);
 			}
 			
 			close(fd);
@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
 	return exit_status;
 }
 
-void write_rainbow(int fd, char* data, size_t size) {
+void write_color_by_offset(int fd, char* data, size_t size) {
 	if(!use_color) {
 		// just write buffer to fd
 		size_t written = 0;
@@ -245,8 +245,8 @@ void write_rainbow(int fd, char* data, size_t size) {
 			output_offs += esc_len + 1;
 			written++;
 
-			if(max_width && posX == max_width) {
-				posX = 0;
+			if(posX == max_width) {
+				posX = 1;
 				posY++;
 			}
 			else {
@@ -270,11 +270,11 @@ void write_rainbow(int fd, char* data, size_t size) {
 	}
 }
 
-void fputs_rainbow(char* str, FILE* file) {
-	write_rainbow(fileno(file), str, strlen(str));
+void fputs_color_by_offset(char* str, FILE* file) {
+	write_color_by_offset(fileno(file), str, strlen(str));
 }
 
-uint32_t rainbow(size_t i) {
+uint32_t color_by_offset(size_t i) {
 	return 
 		((uint8_t)(sin(freq * i)                * 127 + 128) << 24) |
 		((uint8_t)(sin(freq * i + M_PI / 3 * 2) * 127 + 128) << 16) |
