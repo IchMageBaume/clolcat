@@ -3,7 +3,7 @@
 
 char* help_str =
 	"\n"
-	"Usage: lolcat [OPTION]... [FILE]...\n"
+	"Usage: clolcat [OPTION]... [FILE]...\n"
 	"\n"
 	"Concatenate FILE(s), or standard input, to standard output.\n"
 	"With no FILE, or when FILE is -, read standard input.\n"
@@ -17,9 +17,9 @@ char* help_str =
 	"  -h                    Show this help\n"
 	"\n"
 	"Examples:\n"
-	"  lolcat f - g      Output f's contents, then stdin, then g's contents.\n"
-	"  lolcat            Copy standard input to standard output.\n"
-	"  fortune | lolcat  Display a rainbow cookie.\n"
+	"  clolcat f - g      Output f's contents, then stdin, then g's contents.\n"
+	"  clolcat            Copy standard input to standard output.\n"
+	"  fortune | clolcat  Display a rainbow cookie.\n"
 	"\n"
 	"Report bugs to https://github.com/IchMageBaume/clolcat/issues>\n"
 	"\n";
